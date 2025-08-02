@@ -33,7 +33,7 @@ import codecs
 import json
 from string import Template
 from requests import get
-from markdown import markdown
+# from markdown import markdown
 from configparser import ConfigParser # Importante para guardar config.ini
 # from helpers_mpbe.python import FolderWrapper
 # Kivy imports -------------------------------------------------------------
