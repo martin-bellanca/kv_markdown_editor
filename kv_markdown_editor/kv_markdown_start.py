@@ -31,6 +31,9 @@ import sys
 import kivy
 from kivy.logger import Logger
 from kivy.config import Config
+
+print(sys.path)
+
 import __init__ as kv_md_editor
 from kv_markdown_editor.kv_markdown_editor_main_rv import KVMarkdownEditorApp
 
@@ -72,5 +75,7 @@ if __name__ == "__main__":
     Logger.info(f"KV_FILES - {str(kv_md_editor.DIR_KV_FILES)}")
     Logger.info(f"PATH_HOME - {str(kv_md_editor.DIR_HOME)}")
     Logger.info("-"*80)
+
+    
 
     KVMarkdownEditorApp().run()

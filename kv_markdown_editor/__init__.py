@@ -57,11 +57,13 @@ paths_to_add = [
     DIR_WKB / 'kivy_mpe_widgets_prj',
 ]
 
-# Itera y agrega las rutas a sys.path solo si no existen
-for path in paths_to_add:
-    path_str = str(path)
-    if path_str not in sys.path:
-        sys.path.insert(0, path_str) # insert(0,...) da prioridad
+# # Itera y agrega las rutas a sys.path solo si no existen
+# print(sys.path)
+# for path in paths_to_add:
+#     path_str = str(path)
+#     if path_str not in sys.path:
+#         sys.path.insert(0, path_str) # insert(0,...) da prioridad
+# print(sys.path)
 
 # Directorio Home del Usuario
 try:

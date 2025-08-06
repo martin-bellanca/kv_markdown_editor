@@ -53,6 +53,7 @@ from kivy.uix.textinput import TextInput
 
 # Kivy_dkw imports -------------------------------------------------------------
 from kivy_mpbe_widgets.theming import Theme
+from kivy_mpbe_widgets.wg_undo.undo_manager import UndoManager, Command
 from kivy_mpbe_widgets.wg_markdown import MD_LINE_TYPE
 from kivy_mpbe_widgets.wg_markdown.md_document import MDLine, MDDocument
 from kivy_mpbe_widgets.wg_markdown.md_recycleview_editors import MDDocumentLineEditor, MDDocumentEditor, DocLineDataDic
@@ -78,6 +79,7 @@ class KVMarkdownEditorApp(App):
 
         print('+++ INITIALIZE APP +++++++++++++++')
         # self.md_extensions = ['md', 'markdown', 'mdown', 'mkdn', 'mkd', 'mdtxt', 'mdtext']
+        self._undo_manager = UndoManager()
         self.md_extensions = 'md, markdown, mdown, mkdn, mkd, mdtxt, mdtext'
         self._title = "KV Markdown Editor (" + kv_md_editor.__version__ +" - RecycleView)"
         self.title = self._title

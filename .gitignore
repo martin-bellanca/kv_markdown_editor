@@ -34,6 +34,10 @@ pip-wheel-metadata/
 *.env
 .env.*
 
+# Enlaces simbolicos a otros proyectos (git los trata como archivos, no como enlases)
+helpers_mpbe
+kivy_mpbe_widgets
+
 # Archivos y directorios mpbe
 /0_Bullet_Journal-VER
 /0_Diseno
