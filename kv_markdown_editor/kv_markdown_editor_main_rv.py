@@ -63,6 +63,7 @@ from kivy_mpbe_widgets.wg_buttons.click_buttons import ClickButton, ClickButtonL
 from kivy_mpbe_widgets.wg_panels.panels import BoxPanel
 from kivy_mpbe_widgets.wg_tree_panels.tree_panels import FileTreePanel
 from kivy_mpbe_widgets.wg_lists.list_view import ListView  # Obsoleto
+from kivy_mpbe_widgets.wg_inputs.inputs import InputSearchOrFilter
 from kivy_mpbe_widgets.wg_recycle_list_view.recycle_list_view import FileListView
 from kivy_mpbe_widgets.wg_lists.items import FileItem
 # App imports -------------------------------------------------------------
@@ -150,6 +151,12 @@ class KVMarkdownEditorApp(App):
         self.splitter.add_widget(lay_lateral_bar)
         ### File Bar ------------------------------
         lay_lateral_bar.add_widget(self._ui_project_bar())
+        ### Search or Filter Bar ------------------
+        self.search_filter_bar = InputSearchOrFilter(size_hint_y=None, height=36)
+        self.search_filter_bar.bind(on_search=self._on_search_event)
+        self.search_filter_bar.bind(filter_state=self._on_filter_state_change)
+        # self.search_filter_bar.bind(parent_selection_state=self._on_parent_selection_state_change)
+        lay_lateral_bar.add_widget(self.search_filter_bar)
         ### Tree Project --------------------------
         self.tree_prj = FileTreePanel(self.active_project, show_files=False)
         self.tree_prj.tree_view.bind(on_tree_node_selected=self._on_select_folder)
@@ -426,6 +433,23 @@ class KVMarkdownEditorApp(App):
         'Eveto lanzado con la seleccion de una linea en Document Editor'
         # print(f'KVMarkdownEditorApp._on_select_line -> {index} - name {data}')
         pass
+
+    '-- Eventos de Search or Filter Bar --------------------------------------------------'
+    def _on_search_event(self, instance, text):
+        print(f"Search event triggered with text: '{text}'")
+        # Lógica de búsqueda futura aquí
+
+    def _on_filter_state_change(self, instance, state):
+        # Lógica de filtro futura aquí
+        include_parents = self.search_filter_bar.include_parents_toggle.state == 'toggled'
+        print(f"+++++++++ Filter state changed to: {state}, include parents: {include_parents}")
+        if state == 'toggled':  SEGUIR DE ACA
+            # Aplicar el filtro
+            filtered_lines = self.md_document.filter_lines(self.search_filter_bar.text, include_parents=include_parents)
+            self.doc_editor.populate_from_md_lines(filtered_lines)
+        else:
+            # Quitar el filtro
+            self.doc_editor.populate_from_md_lines(self.md_document.md_lines)
 
 
     # EVENTOS DE BOTONES DE TESTEO ==============================================================
