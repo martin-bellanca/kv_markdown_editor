@@ -443,7 +443,7 @@ class KVMarkdownEditorApp(App):
         # Lógica de filtro futura aquí
         include_parents = self.search_filter_bar.include_parents_toggle.state == 'toggled'
         print(f"+++++++++ Filter state changed to: {state}, include parents: {include_parents}")
-        if state == 'toggled':  SEGUIR DE ACA
+        if state == 'toggled':  ## SEGUIR DE ACA
             # Aplicar el filtro
             filtered_lines = self.md_document.filter_lines(self.search_filter_bar.text, include_parents=include_parents)
             self.doc_editor.populate_from_md_lines(filtered_lines)
