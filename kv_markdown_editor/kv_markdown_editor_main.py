@@ -51,7 +51,7 @@ from kivy.uix.textinput import TextInput
 # Kivy_dkw imports -------------------------------------------------------------
 from kivy_mpbe_widgets.theming import Theme
 from kivy_mpbe_widgets.wg_markdown import MD_LINE_TYPE
-from kivy_mpbe_widgets.wg_markdown.md_document import MDLine, MDDocument
+from helpers_mpbe.markdown_document.md_document import MDLine, MDDocument
 from kivy_mpbe_widgets.wg_markdown.md_editors import MDDocumentLineEditor, MDDocumentEditor
 from kivy_mpbe_widgets.wg_labels.image_labels import ImageLabel, ImageWText
 from kivy_mpbe_widgets.wg_labels.font_icon_labels import FontIconLabel, FontIconWText

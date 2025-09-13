@@ -54,9 +54,9 @@ from kivy.uix.textinput import TextInput
 # Kivy_dkw imports -------------------------------------------------------------
 from kivy_mpbe_widgets.theming import Theme
 from kivy_mpbe_widgets.wg_undo.undo_manager import UndoManager, Command
-from kivy_mpbe_widgets.wg_markdown import MD_LINE_TYPE
-from kivy_mpbe_widgets.wg_markdown.md_document import MDLine, MDDocument
-from kivy_mpbe_widgets.wg_markdown.md_recycleview_editors import MDDocumentLineEditor, MDDocumentEditor, DocLineDataDic
+from helpers_mpbe.markdown_document import MD_LINE_TYPE
+from helpers_mpbe.markdown_document.md_document import MDLine, MDDocument
+from kivy_mpbe_widgets.wg_markdown.md_recycleview_document_editor import MDDocumentLineEditor, MDDocumentEditor, DocLineDataDic
 from kivy_mpbe_widgets.wg_labels.image_labels import ImageLabel, ImageWText
 from kivy_mpbe_widgets.wg_labels.font_icon_labels import FontIconLabel, FontIconWText
 from kivy_mpbe_widgets.wg_buttons.click_buttons import ClickButton, ClickButtonLabel
@@ -490,17 +490,17 @@ class KVMarkdownEditorApp(App):
             print(f"El titulo Posterior de {chs[0].md_text} es {chs[0].get_title_first_child().md_text}")
 
 
-if __name__ == "__main__":
-    print()
-    print("python version: %s.%s.%s" % sys.version_info[:3])
-    print("Kivy version: " + kivy.__version__)
-    print("KV Markdown Editor version: " + kv_md_editor.__version__)
-    print("Licencia: " + kv_md_editor.__license__)
-    print("Autor: " + kv_md_editor.__author__)
-    print()
-    print("DIR_APP: " + kv_md_editor.DIR_APP)
-    print("DIR_BASE: " + kv_md_editor.DIRBASE)
-    print("PATH_HOME: " + kv_md_editor.PATH_HOME)
-    print("KV_DIRECTORY: " + kv_md_editor.KV_DIRECTORY)
-    print()
-    KVMarkdownEditorApp().run()
+# if __name__ == "__main__":
+#     print()
+#     print("python version: %s.%s.%s" % sys.version_info[:3])
+#     print("Kivy version: " + kivy.__version__)
+#     print("KV Markdown Editor version: " + kv_md_editor.__version__)
+#     print("Licencia: " + kv_md_editor.__license__)
+#     print("Autor: " + kv_md_editor.__author__)
+#     print()
+#     print("DIR_APP: " + kv_md_editor.DIR_APP)
+#     print("DIR_BASE: " + kv_md_editor.DIRBASE)
+#     print("PATH_HOME: " + kv_md_editor.PATH_HOME)
+#     print("KV_DIRECTORY: " + kv_md_editor.KV_DIRECTORY)
+#     print()
+#     KVMarkdownEditorApp().run()
