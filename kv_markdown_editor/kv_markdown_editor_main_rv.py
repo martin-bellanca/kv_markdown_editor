@@ -56,7 +56,8 @@ from kivy_mpbe_widgets.theming import Theme
 from kivy_mpbe_widgets.wg_undo.undo_manager import UndoManager, Command
 from helpers_mpbe.markdown_document import MD_LINE_TYPE
 from helpers_mpbe.markdown_document.md_document import MDLine, MDDocument
-from kivy_mpbe_widgets.wg_markdown.md_recycleview_document_editor import MDDocumentLineEditor, MDDocumentEditor, DocLineDataDic
+from kivy_mpbe_widgets.wg_markdown.md_recycleview_document_editor import MDDocumentEditor
+from kivy_mpbe_widgets.wg_markdown.md_recycleview_line_editors import MDDocumentLineEditor
 from kivy_mpbe_widgets.wg_labels.image_labels import ImageLabel, ImageWText
 from kivy_mpbe_widgets.wg_labels.font_icon_labels import FontIconLabel, FontIconWText
 from kivy_mpbe_widgets.wg_buttons.click_buttons import ClickButton, ClickButtonLabel
