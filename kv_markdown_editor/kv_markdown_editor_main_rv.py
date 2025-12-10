@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  kv_markdown_editor_main.py
+#  kv_markdown_editor_main_rv.py
 #
 #  Copyright 2012 Martin Pablo Bellanca <mbellanca@gmail.com>
 #
@@ -21,487 +21,685 @@
 #  MA 02110-1301, USA.
 #
 
-'''
-Created on 30/09/2024
-@author: mpbe
-'''
+"""
+Aplicación principal de KV Markdown Editor.
 
-# system imports ------------------------------------------------------------
+Editor de documentos markdown con interfaz Kivy, basado en RecycleView
+para mejor rendimiento con documentos grandes.
+
+@author: mpbe
+@created: 30/09/2024
+@refactored: 08/12/2025
+"""
+
+# System imports
 import os
-import sys
-import codecs
-import json
-from string import Template
-from requests import get
-# from markdown import markdown
-from configparser import ConfigParser # Importante para guardar config.ini
-# from helpers_mpbe.python import FolderWrapper
-# Kivy imports -------------------------------------------------------------
+from pathlib import Path
+
+# Kivy imports
 import kivy
 kivy.require('2.1.0')
 from kivy.logger import Logger
 from kivy.app import App
-from kivy.config import Config
 from kivy.clock import Clock
 from kivy.core.window import Window
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.splitter import Splitter
-from kivy.uix.treeview import TreeView, TreeViewLabel, TreeViewNode
-from kivy.uix.label import Label
-from kivy.uix.textinput import TextInput
 
-# Kivy_dkw imports -------------------------------------------------------------
-from kivy_mpbe_widgets.theming import Theme
-from kivy_mpbe_widgets.wg_undo.undo_manager import UndoManager, Command
-from helpers_mpbe.markdown_document import MD_LINE_TYPE
-from helpers_mpbe.markdown_document.md_document import MDLine, MDDocument
-from kivy_mpbe_widgets.wg_markdown.md_recycleview_document_editor import MDDocumentEditor
-from kivy_mpbe_widgets.wg_markdown.md_recycleview_line_editors import MDDocumentLineEditor
-from kivy_mpbe_widgets.wg_labels.image_labels import ImageLabel, ImageWText
-from kivy_mpbe_widgets.wg_labels.font_icon_labels import FontIconLabel, FontIconWText
-from kivy_mpbe_widgets.wg_buttons.click_buttons import ClickButton, ClickButtonLabel
-from kivy_mpbe_widgets.wg_panels.panels import BoxPanel
-from kivy_mpbe_widgets.wg_tree_panels.tree_panels import FileTreePanel
-from kivy_mpbe_widgets.wg_lists.list_view import ListView  # Obsoleto
-from kivy_mpbe_widgets.wg_inputs.inputs import InputSearchOrFilter
-from kivy_mpbe_widgets.wg_recycle_list_view.recycle_list_view import FileListView
-from kivy_mpbe_widgets.wg_lists.items import FileItem
-# App imports -------------------------------------------------------------
+# Application imports
 import __init__ as kv_md_editor
-from tkinter import Tk, filedialog  # Para el selector del directorio de proyecto
+from kv_markdown_editor.session_manager import SessionManager
+from kv_markdown_editor.project_manager import ProjectManager
+from kv_markdown_editor.ui_builder import UIBuilder
+
+# Kivy widgets imports
+from kivy_mpbe_widgets.theming import Theme
+from kivy_mpbe_widgets.wg_undo.undo_manager import UndoManager
+from helpers_mpbe.markdown_document.md_document import MDDocument
 
 
 class KVMarkdownEditorApp(App):
-    theme = Theme(name='flat_light', style='light')
-    title = "Test Markdown"
+    """
+    Aplicación principal de KV Markdown Editor.
+
+    Editor de documentos markdown con interfaz de doble panel:
+    - Panel izquierdo: navegación de proyectos y archivos
+    - Panel derecho: editor de markdown con RecycleView
+
+    Attributes:
+        theme: Tema visual de la aplicación
+        title: Título de la ventana
+        session_manager: Gestor de persistencia de sesión
+        project_manager: Gestor de proyectos y archivos
+        ui_builder: Constructor de interfaz de usuario
+        _undo_manager: Gestor de deshacer/rehacer (futuro)
+    """
 
     def __init__(self, **kwargs):
+        """Inicializa la aplicación y sus componentes."""
         super(KVMarkdownEditorApp, self).__init__(**kwargs)
 
-        print('+++ INITIALIZE APP +++++++++++++++')
-        # self.md_extensions = ['md', 'markdown', 'mdown', 'mkdn', 'mkd', 'mdtxt', 'mdtext']
-        self._undo_manager = UndoManager()
-        self.md_extensions = 'md, markdown, mdown, mkdn, mkd, mdtxt, mdtext'
-        self._title = "KV Markdown Editor (" + kv_md_editor.__version__ +" - RecycleView)"
+        Logger.info("KVMarkdownEditorApp: Inicializando aplicación")
+
+        # Configuración de tema
+        self.theme = Theme(name='flat_light', style='light')
+
+        # Título de la aplicación
+        version_str = f"{kv_md_editor.__version__} - RecycleView"
+        self._title = f"KV Markdown Editor ({version_str})"
         self.title = self._title
-        # Variables internas ------------------------------------------------
-        self.md_document = MDDocument()
-        self.active_project = ''  # "/home/mpbe/Documentos/Programacion/Programacion_lin/PyCharmProjects/kv_markdown_editor_prj/Doc_Markdown_Pruebas"
-        self._config_file = 'config.ini'
-        
-        print('+++ INITIALIZE APP -> OK')
+
+        # Managers
+        self.session_manager = SessionManager(config_file='config.ini')
+        self.project_manager = ProjectManager(md_document=MDDocument())
+        self.ui_builder = UIBuilder(theme=self.theme)
+        self._undo_manager = UndoManager()
+
+        # Referencias a widgets UI (se inicializan en build())
+        self.widgets = {}
+
+        Logger.info("KVMarkdownEditorApp: Inicialización completada")
 
     def build_settings(self, settings):
-        """Panel de configuración de la aplicación. Se llama con F1"""
-        # Configuración de la aplicación
-        # VER COMO SE CONFIGURA
-        settings.add_json_panel('KV Markdown Editor',
-                                self.config,
-                                data='''
-                                [
-                                    {"type": "title",
-                                    "title": "KV Markdown Editor",
-                                    "collapsable": false,
-                                    "open": false
-                                    }]''')
-        return super().build_settings(settings) # Configuración de la aplicación
+        """
+        Panel de configuración de la aplicación (se llama con F1).
 
-    def build_config(self, config):
-        pass
-        # # Configuracion de la aplicacion
-        # config.setdefaults('app', {
-        #     'theme': 'flat_light',
-        #     'style': 'light',
-        #     'window_size': (1700, 900),
-        #     'window_position': (100, 100),
-        #     'window_maximized': False,
-        #     'window_fullscreen': False,
-        # })
-        # config.setdefaults('project', {
-        #     'active_project': '/home/mpbe/Documentos/Programacion_lin/PyCharmProjects/kv_markdown_editor_prj/Doc_Markdown_Pruebas',
-        #     'active_file': 'Base_001.markdown'
-        # })
-        # Configuracion del tema
-        # self.theme.load_config(config)
-        # Proyecto activo ------------------------------------------------
-        # self.active_project = "/home/mpbe/Documentos/Programacion_lin/PyCharmProjects/kv_markdown_editor_prj/Doc_Markdown_Pruebas"
+        Args:
+            settings: Panel de configuración de Kivy
 
+        Returns:
+            Panel de configuración configurado
+        """
+        settings.add_json_panel(
+            'KV Markdown Editor',
+            self.config,
+            data='''
+                [
+                    {
+                        "type": "title",
+                        "title": "KV Markdown Editor",
+                        "collapsable": false,
+                        "open": false
+                    }
+                ]'''
+        )
+        return super().build_settings(settings)
 
     def build(self):
-        print('+++ Build User Interfaz ++++++++++')
+        """
+        Construye la interfaz de usuario de la aplicación.
+
+        Returns:
+            Widget: Layout raíz de la aplicación
+        """
+        Logger.info("KVMarkdownEditorApp: Construyendo interfaz de usuario")
+
+        # Configurar color de fondo de ventana
         Window.clearcolor = self.theme.style['background_app']
-        sp = self.theme.geometry['spacing']
-        pa = self.theme.geometry['padding']
-        layout = BoxLayout(orientation='horizontal')
-        # Splitter --------------------------------
-        self.splitter = Splitter(sizable_from='right', size_hint=(0.3, 1), max_size=500,min_size=200, strip_size=8)
-        layout.add_widget(self.splitter)
-        # Layout del Editor -----------------------
-        lay_edit = BoxLayout(orientation='vertical')
-        layout.add_widget(lay_edit)
-        ### Markdown Editor -----------------------
-        self.doc_editor = MDDocumentEditor(size_hint=(1,1))
-        self.doc_editor.viewclass = 'MDDocumentLineEditor'
-        self.doc_editor.bind(on_select_item=self._on_select_line, on_unselect_item=self._on_unselect_line)
-        # self.doc_editor.focus = True
-        lay_edit.add_widget(self.doc_editor)
-        print('---- Document Editor -> OK')
-        # Layout de barra lateral -----------------
-        lay_lateral_bar = BoxLayout(orientation='vertical', spacing=sp, padding=pa, size_hint=(None, 1))
-        self.splitter.add_widget(lay_lateral_bar)
-        ### File Bar ------------------------------
-        lay_lateral_bar.add_widget(self._ui_project_bar())
-        ### Search or Filter Bar ------------------
-        self.search_filter_bar = InputSearchOrFilter(size_hint_y=None, height=36)
-        self.search_filter_bar.bind(on_search=self._on_search_event)
-        self.search_filter_bar.bind(filter_state=self._on_filter_state_change)
-        # self.search_filter_bar.bind(parent_selection_state=self._on_parent_selection_state_change)
-        lay_lateral_bar.add_widget(self.search_filter_bar)
-        ### Tree Project --------------------------
-        self.tree_prj = FileTreePanel(self.active_project, show_files=False)
-        self.tree_prj.tree_view.bind(on_tree_node_selected=self._on_select_folder)
-        self.tree_prj.tree_view.bind(on_new_file=self._on_new_file)
-        # self.tree_prj.is_focusable = False
-        self.tree_prj.transparent = True
 
-        lay_lateral_bar.add_widget(self.tree_prj)
-        print('---- Tree Project -> OK')
-        ### Files view ----------------------------
-        bpanel = BoxPanel(padding=(0, 0))
-        bpanel.transparent = True
-        lay_lateral_bar.add_widget(bpanel)
-        self.files_view = FileListView(folder=self.active_project, extensions=self.md_extensions)
-        # self.files_view.is_focusable = False
-        bpanel.container.add_widget(self.files_view)
-        ### Actualizacion de la Interfaz ----------
-        self.files_view.folder = self.tree_prj.tree_view.root_path
-        # ---------------------------------------------------------------------
-        # Events --------------------------------------------------------------
-        # self.tree_prj.bind(on_tree_node_selected=self._on_select_folder)
-        self.files_view.bind(on_select_item=self._on_select_file, on_unselect_item=self._on_unselect_file)
-        # self.files_view.bind(on_delete_file=self._on_delete_file)
-        self.files_view.bind(on_save_file=self._on_save_file)
-        print('---- File View -> OK')
-        ### BOTONES PARA TESTS ============================================================
-        ### IMPRIMIR LISTADO MDLine
-        self.btn_mdline1 = ClickButton(text='Print MDLine', size_hint=(1, None))
-        self.btn_mdline1.is_focusable = False
-        self.btn_mdline1.height = 30
-        self.btn_mdline1.bind(on_click=self._on_btn_mdline1_test)
-        lay_lateral_bar.add_widget(self.btn_mdline1)
-        ### IMPRIMIR LISTADO MDLine con P-N
-        self.btn_mdline = ClickButton(text='Print MDLine P-N', size_hint=(1, None))
-        self.btn_mdline.is_focusable = False
-        self.btn_mdline.height = 30
-        self.btn_mdline.bind(on_click=self._on_btn_mdline_test)
-        lay_lateral_bar.add_widget(self.btn_mdline)
-        ### IMPRIMIR TITULOS
-        self.btn_mdtitle = ClickButton(text='Print Titles', size_hint=(1, None))
-        self.btn_mdtitle.is_focusable = False
-        self.btn_mdtitle.height = 30
-        self.btn_mdtitle.bind(on_click=self._on_btn_mdtitle_test)
-        lay_lateral_bar.add_widget(self.btn_mdtitle)
-        print('+++ Build User Interfaz -> OK')
-        return layout
+        # Construir UI completa
+        self.widgets = self.ui_builder.build_complete_ui(
+            active_project=self.project_manager.active_project,
+            md_extensions=self.project_manager.get_extensions_string(),
+            include_debug_buttons=True  # Cambiar a False en producción
+        )
 
-    """ Sesion Funtions ----------------------------------------------------------------"""    
-    def _load_sesion(self):
+        # Conectar eventos
+        self._connect_events()
+
+        Logger.info("KVMarkdownEditorApp: Interfaz de usuario construida")
+
+        return self.widgets['root_layout']
+
+    def _connect_events(self):
         """
-        Carga la configuración de la aplicación desde un archivo.
+        Conecta todos los eventos de la interfaz de usuario.
 
-        Lee la posición y el tamaño de la ventana, el proyecto activo
-        y el archivo activo.
+        Side Effects:
+            Vincula callbacks a eventos de widgets
         """
-        Logger.info('Carga y configura la sesion de la aplicación.-----------------------')
-        print(str(kv_md_editor.DIR_APP / self._config_file))
-        file = str(kv_md_editor.DIR_APP / self._config_file)
-        if not os.path.exists(file):
-            Logger.error(f"Archivo de configuración '{self._config_file}' NO ENCONTRADO.")
-            return False
-        # Lee el archivo y carga los datos en el objeto global Config de Kivy
-        Config.read(file)  # NO LEE EL ARCHIVO
-        # Establecer la configuración de la ventana antes de que se cree
-        w = Config.getint('Window', 'width', fallback='800')
-        h = Config.getint('Window', 'height', fallback='600')
-        l = Config.getint('Window', 'left', fallback=100)
-        t = Config.getint('Window', 'top', fallback=100)
-        # Configuración de la ventana
-        Window.size = (w, h)
-        Window.left = l
-        Window.top = t
-        # Configuración del proyecto
-        self.open_prj(Config.get('Project', 'active_project', fallback=None))
-        active_file = Config.get('Project', 'active_file', fallback=None)
-        if not os.path.exists(self.active_project+os.sep+active_file):
-            Logger.error(f"El archivo activo '{active_file}' no existe en el proyecto '{self.active_project}'.")
-            active_file = None
-        else:
-            self.open_file(self.active_project, active_file)
+        # Eventos del editor de documento
+        self.widgets['doc_editor'].bind(
+            on_select_item=self._on_select_line,
+            on_unselect_item=self._on_unselect_line
+        )
 
-    def _save_sesion(self):
+        # Eventos de la barra de proyecto
+        self.widgets['btn_new_prj'].bind(size=self._on_size_prj_btns)
+        self.widgets['btn_open_prj'].bind(
+            size=self._on_size_prj_btns,
+            on_click=self._on_open_prj
+        )
+        self.widgets['btn_help'].bind(size=self._on_size_prj_btns)
+
+        # Eventos de búsqueda/filtro
+        self.widgets['search_filter_bar'].bind(
+            on_search=self._on_search_event,
+            filter_state=self._on_filter_state_change
+        )
+
+        # Eventos del árbol de archivos
+        self.widgets['tree_panel'].tree_view.bind(
+            on_tree_node_selected=self._on_select_folder,
+            on_new_file=self._on_new_file
+        )
+
+        # Eventos de la vista de archivos
+        self.widgets['file_list_view'].bind(
+            on_select_item=self._on_select_file,
+            on_unselect_item=self._on_unselect_file,
+            on_save_file=self._on_save_file
+        )
+
+        # Eventos de botones de debug
+        if 'btn_mdline1' in self.widgets:
+            self.widgets['btn_mdline1'].bind(on_click=self._on_btn_mdline1_test)
+            self.widgets['btn_mdline'].bind(on_click=self._on_btn_mdline_test)
+            self.widgets['btn_mdtitle'].bind(on_click=self._on_btn_mdtitle_test)
+
+    # Session Management Methods
+
+    def _load_session(self):
         """
-        Guarda la configuración actual de la aplicación.
+        Carga la configuración de la sesión anterior.
 
-        Guarda la posición y tamaño de la ventana, el proyecto activo
-        y el archivo activo.
+        Side Effects:
+            - Restaura tamaño y posición de ventana
+            - Abre proyecto anterior
+            - Abre último archivo activo
+
+        Raises:
+            FileNotFoundError: Si no existe archivo de configuración
+            PermissionError: Si no hay permisos de lectura
+            ValueError: Si el archivo está corrupto
         """
-        # Kivy no actualiza el ConfigParser principal, así que creamos uno nuevo
-        config = ConfigParser()
-        config.add_section('Window')
-        config.set('Window', 'width', str(Window.width))
-        config.set('Window', 'height', str(Window.height))
-        config.set('Window', 'left', str(Window.left))
-        config.set('Window', 'top', str(Window.top))
-        
-        # Configuración del Proyecto
-        config.add_section('Project')
-        project = self.active_project or ''
-        config.set('Project', 'active_project', (self.active_project or ''))
-        config.set('Project', 'active_file', (self.md_document.doc_name or ''))
+        Logger.info("KVMarkdownEditorApp: Cargando sesión")
 
-        # Guardar la configuración en el archivo
-        file = str(kv_md_editor.DIR_APP / self._config_file)
-        with open(file, 'w') as f:
-            config.write(f)
-
-        Logger.info(f"Configuración guardada en {file}")
-
-
-
-
-    """ UI Funtions ----------------------------------------------------------------"""
-    def _ui_project_bar(self):
-        sp = self.theme.geometry['spacing']
-        ### File Bar layout -----------------------
-        self.lay_prj_bar = BoxLayout(orientation='horizontal', spacing=sp, padding=0, size_hint=(1, None))
-        ##### Btn New Project ------------------------
-        icon = FontIconLabel(icon_name='new-box', icon_size=28)
-        self.btn_new_prj = ClickButtonLabel(label=icon, size_hint=(1, None))
-        # self.btn_new_prj.is_focusable = False
-        # self.btn_new_prj = ClickButton(text_label='N', size_hint=(1, None))
-        self.btn_new_prj.bind(size=self._on_size_prj_btns)
-        self.lay_prj_bar.add_widget(self.btn_new_prj)
-        ##### Btn Open Prohect -----------------------
-        icon = FontIconLabel(icon_name='archive', icon_size=28)
-        self.btn_open_prj = ClickButtonLabel(label=icon, size_hint=(1, None))
-        # self.btn_open_prj.is_focusable = False
-        # self.btn_open_prj = ClickButton(text_label='O', size_hint=(1, None))
-        self.btn_open_prj.bind(size=self._on_size_prj_btns)
-        self.btn_open_prj.bind(on_click=self._on_open_prj)
-        self.lay_prj_bar.add_widget(self.btn_open_prj)
-        ##### Btn Help -------------------------------
-        icon = FontIconLabel(icon_name='help-circle-outline', icon_size=28)
-        self.btn_help = ClickButtonLabel(label=icon, size_hint=(1, None))
-        # self.btn_help = ClickButton(text_label='H', size_hint=(1, None))
-        # self.btn_help.is_focusable = False
-        self.btn_help.bind(size=self._on_size_prj_btns)
-        self.lay_prj_bar.add_widget(self.btn_help)
-        return self.lay_prj_bar
-
-    def _open_folderchooser(self, initial_directory):
-        # Ocultar la ventana principal de tkinter
-        root = Tk()
-        root.withdraw()
-        # Abrir el diálogo para seleccionar un directorio
-        selected_directory = filedialog.askdirectory(initialdir=initial_directory)
-        # Cerrar la ventana de tkinter
-        root.destroy()
-        return selected_directory
-
-    def open_prj(self, folder:str):
-        if folder:
-            self.tree_prj.tree_view.root_path = folder
-            self.files_view.folder = folder
-            self.active_project = folder
-
-    def on_open_prj(self, dt):
-        sel_folder = self._open_folderchooser(self.active_project)  # kivy_dkw.PATH_HOME
-        self.open_prj(sel_folder)
-
-    def open_file(self, file_path, file_name):
-        if os.path.isfile(file_path+os.sep+file_name):
-            self.md_document.load_doc(file_path, file_name)
-            self.populate_doc_editor()
-            self.files_view.populate(folder=file_path, select_file=file_name)
-            # hay que seleccionar el archivo en el recycleview
-            # self.files_view.select_item(file_name)
-
-            return True
-        else:
-            Logger.error(f"Error: El archivo {file_path+os.sep+file_name} no existe o no es un archivo válido.")
-            return False
-
-    # def _populate_file_view(self, folder):
-    #     # try:
-    #     wrapper = FolderWrapper(folder)
-    #     lstfolders, lstfiles = wrapper.getChildsNames(sorted, show_hidden=False, filters=self.md_extensions)
-    #     self.files_view.clear_items()
-    #     for fl in lstfiles:
-    #         it = FileItem(fl, icon_name='file-document', icon_size=18)
-    #         it.btn_save.bind(on_click=self._on_save_file)
-    #         # AGREGAR BIND A BOTON OPTIONS. VER SI PUEDO CAPTURAR BOTON DERECHO Y TAP LARGO O DOBLE CLICK
-    #
-    #         self.files_view.add_item(it)
-    #     # except:
-    #     #     print("Error al cargar el proyecto. Verificar si existe el directorio")
-    # # Funciones de archivos ----------------------------------------------
-    # # def _new_mdfile(self):
-    # #     # Crea el texto Markdown de prueba (BORRAR)
-    # #     lines = [MDLine(md_text='# Titulo', prev_line=None, next_line=None)]
-    # #     for i in range(1, 20):
-    # #         mdt = '**Linea {}** Linea de texto jfasd'.format(str(i + 1))
-    # #         lines.append(MDLine(md_text=mdt, prev_line=None, next_line=None))
-    # #     return lines
-
-    ' MDDocument Functions -----------------------------------------------------------'
-    def populate_doc_editor(self):
-        # self.doc_editor.initialize_document()
-        # self.doc_editor.data = []
-        # for id, mdl in enumerate(self.md_document.md_lines, start=1):
-        #     data_line = DocLineDataDic(id, mdl)
-        #     dic_line = data_line.to_dict()
-        #     self.doc_editor.data.append(dic_line)
-        # #self.doc_editor.refresh_from_data()
-        self.doc_editor.populate_from_md_lines(self.md_document.md_lines)
-        pass
-
-    """ Events Funtions --------------------------------------------------------------"""
-    def on_start(self):
-        print("+++ On Start +++++++++++++++++++++")
-        App.on_start(self)
-        # update widgets to the last session -----------------
-        # Window.size = (1700, 900)
         try:
-            self._load_sesion()  # Carga la informacion de la ultima sesion
+            session_data = self.session_manager.load_session(kv_md_editor.DIR_APP)
+
+            # Restaurar configuración de ventana
+            window_cfg = session_data['window']
+            Window.size = (window_cfg['width'], window_cfg['height'])
+            Window.left = window_cfg['left']
+            Window.top = window_cfg['top']
+
+            # Restaurar proyecto activo
+            project_cfg = session_data['project']
+            if project_cfg['active_project']:
+                try:
+                    self.open_project(project_cfg['active_project'])
+
+                    # Abrir último archivo activo
+                    if project_cfg['active_file']:
+                        self.open_file(
+                            project_cfg['active_project'],
+                            project_cfg['active_file']
+                        )
+
+                except Exception as e:
+                    Logger.warning(
+                        f"KVMarkdownEditorApp: No se pudo restaurar proyecto/archivo: {e}"
+                    )
+
+            Logger.info("KVMarkdownEditorApp: Sesión cargada exitosamente")
+
+        except FileNotFoundError:
+            Logger.info(
+                "KVMarkdownEditorApp: No existe archivo de configuración, "
+                "usando valores por defecto"
+            )
         except Exception as e:
-            print(f'Warning:  {self.__class__} Se produjo un error al iniciar Task-txt. Detalle: {e}')
-        print("+++ On Start -> OK")
+            Logger.error(f"KVMarkdownEditorApp: Error al cargar sesión: {e}")
+            raise
+
+    def _save_session(self):
+        """
+        Guarda la configuración actual de sesión.
+
+        Side Effects:
+            Guarda estado actual en config.ini
+
+        Raises:
+            PermissionError: Si no hay permisos de escritura
+            OSError: Si hay error al escribir archivo
+        """
+        Logger.info("KVMarkdownEditorApp: Guardando sesión")
+
+        try:
+            window_config = {
+                'width': int(Window.width),
+                'height': int(Window.height),
+                'left': int(Window.left),
+                'top': int(Window.top)
+            }
+
+            project_config = {
+                'active_project': self.project_manager.active_project,
+                'active_file': self.project_manager.md_document.doc_name or ''
+            }
+
+            self.session_manager.save_session(
+                kv_md_editor.DIR_APP,
+                window_config,
+                project_config
+            )
+
+            Logger.info("KVMarkdownEditorApp: Sesión guardada exitosamente")
+
+        except Exception as e:
+            Logger.error(f"KVMarkdownEditorApp: Error al guardar sesión: {e}")
+            raise
+
+    # Project and File Management Methods
+
+    def open_project(self, folder: str) -> bool:
+        """
+        Abre un proyecto markdown.
+
+        Args:
+            folder: Ruta del directorio del proyecto
+
+        Returns:
+            bool: True si el proyecto se abrió exitosamente
+
+        Raises:
+            ValueError: Si la carpeta es inválida
+            FileNotFoundError: Si la carpeta no existe
+            PermissionError: Si no hay permisos
+        """
+        if not folder:
+            return False
+
+        try:
+            # Abrir proyecto usando ProjectManager
+            self.project_manager.open_project(folder)
+
+            # Actualizar UI
+            self.widgets['tree_panel'].tree_view.root_path = folder
+            self.widgets['file_list_view'].folder = folder
+
+            Logger.info(f"KVMarkdownEditorApp: Proyecto abierto: {folder}")
+            return True
+
+        except Exception as e:
+            Logger.error(f"KVMarkdownEditorApp: Error al abrir proyecto: {e}")
+            raise
+
+    def open_file(self, file_path: str, file_name: str) -> bool:
+        """
+        Abre un archivo markdown.
+
+        Args:
+            file_path: Directorio del archivo
+            file_name: Nombre del archivo
+
+        Returns:
+            bool: True si el archivo se abrió exitosamente
+
+        Raises:
+            ValueError: Si los parámetros son inválidos
+            FileNotFoundError: Si el archivo no existe
+            PermissionError: Si no hay permisos de lectura
+        """
+        try:
+            # Abrir archivo usando ProjectManager
+            self.project_manager.open_file(file_path, file_name)
+
+            # Actualizar editor
+            self.populate_doc_editor()
+
+            # Actualizar vista de archivos
+            self.widgets['file_list_view'].populate(
+                folder=file_path,
+                select_file=file_name
+            )
+
+            Logger.info(f"KVMarkdownEditorApp: Archivo abierto: {file_name}")
+            return True
+
+        except Exception as e:
+            Logger.error(f"KVMarkdownEditorApp: Error al abrir archivo: {e}")
+            raise
+
+    def save_file(self) -> bool:
+        """
+        Guarda el archivo markdown actual.
+
+        Returns:
+            bool: True si el archivo se guardó exitosamente
+
+        Raises:
+            ValueError: Si no hay documento activo
+            PermissionError: Si no hay permisos de escritura
+            OSError: Si hay error al escribir
+        """
+        try:
+            self.project_manager.save_file()
+            Logger.info("KVMarkdownEditorApp: Archivo guardado exitosamente")
+            return True
+
+        except Exception as e:
+            Logger.error(f"KVMarkdownEditorApp: Error al guardar archivo: {e}")
+            raise
+
+    # Document Editor Methods
+
+    def populate_doc_editor(self):
+        """
+        Puebla el editor con las líneas del documento actual.
+
+        Side Effects:
+            Actualiza widgets['doc_editor'] con las líneas del documento
+        """
+        md_lines = self.project_manager.md_document.md_lines
+        self.widgets['doc_editor'].populate_from_md_lines(md_lines)
+        Logger.debug(f"KVMarkdownEditorApp: Editor poblado con {len(md_lines)} líneas")
+
+    # Event Handlers - Lifecycle
+
+    def on_start(self):
+        """
+        Callback ejecutado cuando la aplicación inicia.
+
+        Side Effects:
+            Carga la sesión anterior si existe
+        """
+        Logger.info("KVMarkdownEditorApp: Aplicación iniciando")
+        App.on_start(self)
+
+        try:
+            self._load_session()
+        except FileNotFoundError:
+            # Es normal en primera ejecución
+            pass
+        except Exception as e:
+            Logger.warning(
+                f"KVMarkdownEditorApp: Error al cargar sesión inicial: {e}"
+            )
+
+        Logger.info("KVMarkdownEditorApp: Aplicación iniciada")
 
     def on_stop(self):
-        self._save_sesion()
-        App.on_stop(self)
+        """
+        Callback ejecutado cuando la aplicación se cierra.
 
-    '-- Events project bar -------------------------------------------------------------'
+        Side Effects:
+            Guarda la sesión actual
+        """
+        Logger.info("KVMarkdownEditorApp: Aplicación cerrando")
+
+        try:
+            self._save_session()
+        except Exception as e:
+            Logger.error(f"KVMarkdownEditorApp: Error al guardar sesión final: {e}")
+
+        App.on_stop(self)
+        Logger.info("KVMarkdownEditorApp: Aplicación cerrada")
+
+    # Event Handlers - Project Bar
+
     def _on_size_prj_btns(self, instance, value):
+        """
+        Ajusta el tamaño de los botones de la barra de proyecto.
+
+        Args:
+            instance: Widget que disparó el evento
+            value: Nuevo valor de size
+        """
         if instance.height < 30 or instance.height > instance.width:
             instance.height = instance.width
-            self.lay_prj_bar.height = instance.height
-
-    def _on_select_folder(self, tree, folder, touch):
-        # print("KVMarkdownEditor._on_select_folder")
-        self.md_document = MDDocument()
-        self.doc_editor.md_document = self.md_document
-        self.files_view.folder = folder.path_node
+            self.widgets['project_bar_layout'].height = instance.height
 
     def _on_open_prj(self, instance, touch, keycode):
-        Clock.schedule_once(self.on_open_prj, 0.4)
+        """
+        Maneja el click en el botón de abrir proyecto.
 
-    '-- Eventos of the files ------------------------------------------------------------'
+        Args:
+            instance: Botón que disparó el evento
+            touch: Información del toque
+            keycode: Código de tecla
+        """
+        Clock.schedule_once(self._open_project_dialog, 0.4)
+
+    def _open_project_dialog(self, dt):
+        """
+        Abre el diálogo de selección de proyecto.
+
+        Args:
+            dt: Delta time (requerido por Clock.schedule_once)
+        """
+        try:
+            selected_folder = self.project_manager.open_project_dialog(
+                self.project_manager.active_project
+            )
+
+            if selected_folder:
+                self.open_project(selected_folder)
+
+        except Exception as e:
+            Logger.error(f"KVMarkdownEditorApp: Error al abrir diálogo de proyecto: {e}")
+
+    # Event Handlers - Folder and File Selection
+
+    def _on_select_folder(self, tree, folder, touch):
+        """
+        Maneja la selección de una carpeta en el árbol.
+
+        Args:
+            tree: TreeView que disparó el evento
+            folder: Nodo de carpeta seleccionado
+            touch: Información del toque
+
+        Side Effects:
+            - Reinicia el documento actual
+            - Actualiza la lista de archivos
+        """
+        Logger.debug(f"KVMarkdownEditorApp: Carpeta seleccionada: {folder.path_node}")
+
+        # Reiniciar documento
+        self.project_manager.md_document = MDDocument()
+        self.widgets['doc_editor'].md_document = self.project_manager.md_document
+
+        # Actualizar lista de archivos
+        self.widgets['file_list_view'].folder = folder.path_node
+
     def _on_select_file(self, instance, data, index):
-        # self.md_document.load_doc(self.tree_prj.tree_view.selected_node.path_node, data['file_name'])  # lee el archivo
-        # self.populate_doc_editor()
-        self.open_file(self.tree_prj.tree_view.selected_node.path_node, data['file_name'])
+        """
+        Maneja la selección de un archivo en la lista.
+
+        Args:
+            instance: FileListView que disparó el evento
+            data: Diccionario con datos del archivo seleccionado
+            index: Índice del archivo en la lista
+        """
+        file_name = data.get('file_name', '')
+        folder_path = self.widgets['tree_panel'].tree_view.selected_node.path_node
+
+        Logger.debug(f"KVMarkdownEditorApp: Archivo seleccionado: {file_name}")
+
+        try:
+            self.open_file(folder_path, file_name)
+        except Exception as e:
+            Logger.error(f"KVMarkdownEditorApp: Error al seleccionar archivo: {e}")
 
     def _on_unselect_file(self, instance, data, index):
-        # TODO: Verificar si el archivo se modifico y guardar
-        pass
+        """
+        Maneja la deselección de un archivo en la lista.
+
+        Args:
+            instance: FileListView que disparó el evento
+            data: Diccionario con datos del archivo
+            index: Índice del archivo
+
+        Note:
+            TODO: Verificar si el archivo se modificó y guardar automáticamente
+        """
+        Logger.debug("KVMarkdownEditorApp: Archivo deseleccionado")
 
     def _on_save_file(self, instance, file_name):
-        file = self.active_project+os.sep+file_name
-        print(f'Guardar el archivo {file}')
-        self.md_document.join_lines()
-        self.md_document.save_doc()
+        """
+        Maneja el evento de guardar archivo.
+
+        Args:
+            instance: Widget que disparó el evento
+            file_name: Nombre del archivo a guardar
+        """
+        Logger.info(f"KVMarkdownEditorApp: Guardando archivo: {file_name}")
+
+        try:
+            self.save_file()
+        except Exception as e:
+            Logger.error(f"KVMarkdownEditorApp: Error al guardar: {e}")
 
     def _on_new_file(self, instance, parent_folder):
-        print(f"KVMarkdownEditorApp._on_new_file - {parent_folder}")
-        sel_path = self.tree_prj.tree_view.selected_node.path_node
-        if parent_folder == sel_path:
-            self.files_view.update_folder()
+        """
+        Maneja la creación de un nuevo archivo.
 
+        Args:
+            instance: Widget que disparó el evento
+            parent_folder: Carpeta padre donde crear el archivo
 
-    # def _on_delete_file(self, file_name):
-    #     # TODO: Verificar si el archivo es el activo blanquear la interfaz
-    #     pass
+        Side Effects:
+            Actualiza la lista de archivos si la carpeta coincide
+        """
+        Logger.debug(f"KVMarkdownEditorApp: Nuevo archivo en: {parent_folder}")
 
-    '-- Eventos de Document Editor ------------------------------------------------------'
+        selected_path = self.widgets['tree_panel'].tree_view.selected_node.path_node
+        if parent_folder == selected_path:
+            self.widgets['file_list_view'].update_folder()
+
+    # Event Handlers - Document Editor
+
     def _on_select_line(self, instance, data, index):
-        'Eveto lanzado con la seleccion de una linea en Document Editor'
-        # print(f'KVMarkdownEditorApp._on_select_line -> {index} - name {data}')
-        pass
+        """
+        Maneja la selección de una línea en el editor.
+
+        Args:
+            instance: Editor que disparó el evento
+            data: Datos de la línea seleccionada
+            index: Índice de la línea
+        """
+        Logger.debug(f"KVMarkdownEditorApp: Línea seleccionada: {index}")
 
     def _on_unselect_line(self, instance, data, index):
-        'Eveto lanzado con la seleccion de una linea en Document Editor'
-        # print(f'KVMarkdownEditorApp._on_select_line -> {index} - name {data}')
-        pass
+        """
+        Maneja la deselección de una línea en el editor.
 
-    '-- Eventos de Search or Filter Bar --------------------------------------------------'
+        Args:
+            instance: Editor que disparó el evento
+            data: Datos de la línea
+            index: Índice de la línea
+        """
+        Logger.debug(f"KVMarkdownEditorApp: Línea deseleccionada: {index}")
+
+    # Event Handlers - Search and Filter
+
     def _on_search_event(self, instance, text):
-        print(f"Search event triggered with text: '{text}'")
-        # Lógica de búsqueda futura aquí
+        """
+        Maneja el evento de búsqueda.
+
+        Args:
+            instance: InputSearchOrFilter que disparó el evento
+            text: Texto de búsqueda ingresado
+
+        Note:
+            TODO: Implementar lógica de búsqueda
+        """
+        Logger.debug(f"KVMarkdownEditorApp: Búsqueda: '{text}'")
 
     def _on_filter_state_change(self, instance, state):
-        # Lógica de filtro futura aquí
-        include_parents = self.search_filter_bar.include_parents_toggle.state == 'toggled'
-        print(f"+++++++++ Filter state changed to: {state}, include parents: {include_parents}")
-        if state == 'toggled':  ## SEGUIR DE ACA
-            # Aplicar el filtro
-            filtered_lines = self.md_document.filter_lines(self.search_filter_bar.text, include_parents=include_parents)
-            self.doc_editor.populate_from_md_lines(filtered_lines)
-        else:
-            # Quitar el filtro
-            self.doc_editor.populate_from_md_lines(self.md_document.md_lines)
+        """
+        Maneja el cambio de estado del filtro.
 
+        Cuando el filtro está activo, filtra las líneas que contienen
+        el texto de búsqueda. Opcionalmente incluye títulos padres
+        para proporcionar contexto.
 
-    # EVENTOS DE BOTONES DE TESTEO ==============================================================
-    def _on_btn_mdline_test(self, instance, touch, keycode):
-        for ll in self.md_document.md_lines:
-            print("----------------------------------------------------------------------------")
-            if ll.prev_line:
-                print(f"Prev line: {ll.prev_line.md_text}")
-            print(f"Actual Line: {ll.md_text}")
-            if ll.next_line:
-                print(f"next Line: {ll.next_line.md_text}")
+        Args:
+            instance: InputSearchOrFilter que disparó el evento
+            state: Estado del filtro ('toggled' o 'normal')
+
+        Side Effects:
+            Actualiza el editor con líneas filtradas o completas
+        """
+        include_parents = (
+            self.widgets['search_filter_bar'].include_parents_toggle.state == 'toggled'
+        )
+
+        Logger.debug(
+            f"KVMarkdownEditorApp: Filtro {state}, "
+            f"incluir padres: {include_parents}"
+        )
+
+        try:
+            if state == 'toggled':
+                # Aplicar filtro
+                search_text = self.widgets['search_filter_bar'].text
+                filtered_lines = self.project_manager.md_document.filter_lines(
+                    search_text,
+                    include_parents=include_parents
+                )
+                self.widgets['doc_editor'].populate_from_md_lines(filtered_lines)
+            else:
+                # Quitar filtro
+                all_lines = self.project_manager.md_document.md_lines
+                self.widgets['doc_editor'].populate_from_md_lines(all_lines)
+
+        except AttributeError as e:
+            Logger.warning(
+                f"KVMarkdownEditorApp: Método filter_lines no implementado aún: {e}"
+            )
+        except Exception as e:
+            Logger.error(f"KVMarkdownEditorApp: Error al filtrar: {e}")
+
+    # Debug/Test Event Handlers
 
     def _on_btn_mdline1_test(self, instance, touch, keycode):
-        for ll in self.md_document.md_lines:
-            print(f"Actual Line {ll.type}: {ll.md_text}")
+        """Imprime información de todas las líneas del documento."""
+        Logger.info("=== MDLine Test - Lista completa ===")
+        for line in self.project_manager.md_document.md_lines:
+            Logger.info(f"Línea {line.type}: {line.md_text}")
+
+    def _on_btn_mdline_test(self, instance, touch, keycode):
+        """Imprime información de líneas con prev/next."""
+        Logger.info("=== MDLine Test - Con Prev/Next ===")
+        for line in self.project_manager.md_document.md_lines:
+            Logger.info("-" * 80)
+            if line.prev_line:
+                Logger.info(f"Prev: {line.prev_line.md_text}")
+            Logger.info(f"Actual: {line.md_text}")
+            if line.next_line:
+                Logger.info(f"Next: {line.next_line.md_text}")
 
     def _on_btn_mdtitle_test(self, instance, touch, keycode):
-        ft = self.md_document.get_first_title()
-        if ft:
-            print(f"Primer Titulo: {ft.md_text}")
-            chs = ft.get_title_Childs()
-            print("Hijos ---------------------")
-            for ch in chs:
-                print(ch.md_text)
-            print("Padre ---------------------")
-            tp = ft.get_title_parent()
-            if tp == None:
-                tpt = "None, No tiene Padre"
-            else:
-                tpt = tp.md_text
-            print(f"El padre de {ft.md_text} es {tpt}")
-            print(f"El padre de {chs[1].md_text} es {chs[1].get_title_parent().md_text}")
-            print("Titulo Prev --------------")
-            print(f"El titulo Previo de {chs[1].md_text} es {chs[1].get_title_prev().md_text}")
-            print("Titulo Next --------------")
-            print(f"El titulo Posterior de {chs[0].md_text} es {chs[0].get_title_next().md_text}")
-            print("Titulo Primer Hijo --------------")
-            print(f"El titulo Posterior de {chs[0].md_text} es {chs[0].get_title_first_child().md_text}")
+        """Imprime información de títulos y jerarquía."""
+        Logger.info("=== MDTitle Test - Jerarquía de títulos ===")
 
+        first_title = self.project_manager.md_document.get_first_title()
+        if not first_title:
+            Logger.info("No hay títulos en el documento")
+            return
 
-# if __name__ == "__main__":
-#     print()
-#     print("python version: %s.%s.%s" % sys.version_info[:3])
-#     print("Kivy version: " + kivy.__version__)
-#     print("KV Markdown Editor version: " + kv_md_editor.__version__)
-#     print("Licencia: " + kv_md_editor.__license__)
-#     print("Autor: " + kv_md_editor.__author__)
-#     print()
-#     print("DIR_APP: " + kv_md_editor.DIR_APP)
-#     print("DIR_BASE: " + kv_md_editor.DIRBASE)
-#     print("PATH_HOME: " + kv_md_editor.PATH_HOME)
-#     print("KV_DIRECTORY: " + kv_md_editor.KV_DIRECTORY)
-#     print()
-#     KVMarkdownEditorApp().run()
+        Logger.info(f"Primer título: {first_title.md_text}")
+
+        # Hijos del primer título
+        children = first_title.get_title_Childs()
+        Logger.info(f"Hijos ({len(children)}):")
+        for child in children:
+            Logger.info(f"  - {child.md_text}")
+
+        # Padre del primer título
+        parent = first_title.get_title_parent()
+        if parent:
+            Logger.info(f"Padre: {parent.md_text}")
+        else:
+            Logger.info("Padre: None (es título raíz)")
+
+        # Navegación de títulos
+        if len(children) > 1:
+            Logger.info(f"Padre de '{children[1].md_text}': {children[1].get_title_parent().md_text}")
+            Logger.info(f"Título previo de '{children[1].md_text}': {children[1].get_title_prev().md_text}")
+            Logger.info(f"Título siguiente de '{children[0].md_text}': {children[0].get_title_next().md_text}")
+
+            first_child = children[0].get_title_first_child()
+            if first_child:
+                Logger.info(f"Primer hijo de '{children[0].md_text}': {first_child.md_text}")
