@@ -52,7 +52,7 @@ DIR_KV_FILES = DIR_APP / 'kv_files'  # os.path.join(DIR_APP, 'kv_files/')
 
 # Lista de directorios a agregar a sys.path
 paths_to_add = [
-    DIR_WKB / 'kv_markdown_editor_prj',
+    DIR_WKB / 'kv_markdown_editor_prj_v2',
     DIR_WKB / 'helpers_mpbe_prj',
     DIR_WKB / 'kivy_mpe_widgets_prj',
 ]

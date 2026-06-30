@@ -1,0 +1,525 @@
+@startuml md_document_editor_v2_architecture
+
+!define LIGHTORANGE #FFE5CC
+!define LIGHTBLUE #CCE5FF
+!define LIGHTGREEN #CCFFCC
+!define LIGHTYELLOW #FFFFCC
+!define LIGHTPINK #FFCCCC
+
+skinparam packageStyle rectangle
+skinparam backgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor black
+skinparam arrowColor black
+
+title MDDocumentEditor V2 - Arquitectura con StateManager y Service Layer
+
+' ============================================================================
+' CAPA DE VISTA (UI) - Kivy Widgets
+' ============================================================================
+package "Vista (UI Layer)" LIGHTORANGE {
+
+    class MDDocumentEditor {
+        ' RecycleView para editor de documentos Markdown
+        --Properties--
+        +filter: BooleanProperty
+        +filter_txt: StringProperty
+        +filter_up: BooleanProperty
+        --Attributes--
+        +state_manager: DocumentStateManager
+        +line_service: LineService
+        +selection_service: SelectionService
+        +navigation_service: NavigationService
+        +filter_service: FilterService
+        +undo_manager: UndoManager
+        -_md_lines: List[MDLine]
+        -data_items: Dict
+        +layout: SelectableRecycleBoxLayout
+        --Methods--
+        +__init__(activate_background, flat)
+        +initialize_document()
+        +populate_from_md_lines(md_lines)
+        +apply_data_items()
+        +apply_filter(filter_text, include_parents)
+        +clear_filter()
+        +handle_touch_left_up_event(index, view, touch)
+        +handle_hotlight_event(index, state)
+        +scroll_to_index(index)
+        +validate_state(): bool
+        +print_state_summary()
+        --Private Methods--
+        -_initialize_services()
+        -_create_data_items()
+        -_on_line_state_changed(event)
+        -_get_widget_at_index(index)
+        -_on_keyboard_down()
+        -_on_keyboard_enter()
+        -_on_keyboard_delete()
+        -_on_keyboard_arrow_down(modifiers)
+        -_on_keyboard_arrow_up(modifiers)
+        --Callbacks--
+        +on_kv_post(base_widget)
+        +on_filter(instance, value)
+        +on_filter_txt(instance, value)
+        +on_filter_up(instance, value)
+    }
+
+    class SelectableRecycleBoxLayout {
+        ' Layout para RecycleView
+        --Methods--
+        +__init__()
+    }
+
+    class MDDocumentLineEditor {
+        ' Editor individual de línea
+        ' (widget reciclable)
+        --Attributes--
+        +index: int
+        +md_line: MDLine
+        +state: LineState
+        +wg_line_editor
+        --Methods--
+        +apply_state(state)
+    }
+}
+
+' ============================================================================
+' CAPA DE ESTADO (State Management)
+' ============================================================================
+package "Gestión de Estado (State Layer)" LIGHTBLUE {
+
+    class DocumentStateManager <<StateManager>> {
+        ' Gestor centralizado de estados
+        --Attributes--
+        -_states: Dict[int, LineState]
+        -_active_index: Optional[int]
+        -_selected_indices: Set[int]
+        -_observers: List[Callable]
+        -_enable_history: bool
+        -_history: List[StateChangeEvent]
+        --Access Methods--
+        +get_state(index): LineState
+        +get_all_states(): Dict[int, LineState]
+        +get_active_index(): Optional[int]
+        +get_selected_indices(): Set[int]
+        +has_selection(): bool
+        +has_active_line(): bool
+        --Modification Methods--
+        +update_state(index, **changes)
+        +activate_line(index, enter_edit_mode, cursor_pos)
+        +deactivate_line(index)
+        +deactivate_all()
+        +select_line(index, multi)
+        +unselect_line(index)
+        +toggle_selection(index)
+        +select_range(start, end)
+        +clear_selection()
+        +toggle_edit_mode(index)
+        +set_hotlight(index, value)
+        +set_visibility(index, visible)
+        --Sub-widget Visibility (DataShow)--
+        +set_show_number_line(index, value)
+        +set_show_number_line_all(value)
+        +set_show_tree(index, value)
+        +set_show_tree_all(value)
+        +set_show_infobar(index, value)
+        +set_show_infobar_all(value)
+        --Theme (DataThemed)--
+        +set_alpha_background(index, alpha)
+        +set_alpha_background_all(alpha)
+        +set_alpha_background_zebra(alpha_even, alpha_odd)
+        --Document Operations--
+        +initialize_states(count)
+        +shift_indices(start_index, delta)
+        +remove_state(index)
+        +clear_all()
+        --Observer Pattern--
+        +subscribe(observer)
+        +unsubscribe(observer)
+        -_notify_observers(index, old_state, new_state)
+        --Debug & Validation--
+        +get_history(): List[StateChangeEvent]
+        +print_state_summary()
+        +validate_invariants(): bool
+    }
+
+    class LineState <<Immutable>> {
+        ' Estado inmutable de una línea
+        --State Attributes--
+        +index: int
+        +selected: bool = False
+        +active: bool = False
+        +editing: bool = False
+        +hotlight: bool = False
+        +visible: bool = True
+        +cursor_pos: Tuple[int, int]
+        --Visibility Attributes (DataShow)--
+        +show_number_line: bool = True
+        +show_tree: bool = False
+        +show_infobar: bool = False
+        --Theme Attributes (DataThemed)--
+        +alpha_background: float = 0.0
+        --Methods--
+        +with_changes(**kwargs): LineState
+        +__repr__(): str
+    }
+
+    class StateChangeEvent {
+        ' Evento de cambio de estado
+        --Attributes--
+        +index: int
+        +old_state: LineState
+        +new_state: LineState
+        --Properties--
+        +changed_attributes: Set[str]
+        --Methods--
+        +__init__(index, old_state, new_state)
+        +__repr__(): str
+    }
+}
+
+' ============================================================================
+' CAPA DE SERVICIOS (Business Logic)
+' ============================================================================
+package "Servicios (Service Layer)" LIGHTGREEN {
+
+    class LineService <<Service>> {
+        ' Servicio de operaciones de líneas
+        --Constants--
+        +EDITABLE_TYPES: Set[MD_LINE_TYPE]
+        +NON_EDITABLE_TYPES: Set[MD_LINE_TYPE]
+        --Attributes--
+        +state_manager: DocumentStateManager
+        +md_lines: List[MDLine]
+        --Public Methods--
+        +activate_line(index, enter_edit, cursor_pos): bool
+        +deactivate_current_line(save_changes): bool
+        +toggle_edit_mode(index): bool
+        +is_line_editable(index): bool
+        +insert_line_above(index, text, line_type): int
+        +insert_line_below(index, text, line_type): int
+        +delete_line(index): bool
+        +move_line_up(index): bool
+        +move_line_down(index): bool
+        +update_line_text(index, new_text)
+        +update_line_type(index)
+        --Private Methods--
+        -_deactivate_line(index)
+        -_is_valid_index(index): bool
+        -_is_editable(md_line): bool
+        -_update_prev_next_references(index)
+    }
+
+    class SelectionService <<Service>> {
+        ' Servicio de selección de líneas
+        --Attributes--
+        +state_manager: DocumentStateManager
+        +md_lines: List[MDLine]
+        --Single Selection--
+        +select_single(index): bool
+        --Multi Selection--
+        +select_multi(index): bool
+        +select_range(start, end): int
+        +toggle_selection(index): bool
+        --Deselection--
+        +unselect(index): bool
+        +clear_all()
+        --Query Methods--
+        +get_selected_indices(): Set[int]
+        +get_selected_count(): int
+        +is_selected(index): bool
+        +has_selection(): bool
+        --Private Methods--
+        -_is_valid_index(index): bool
+    }
+
+    class NavigationService <<Service>> {
+        ' Servicio de navegación
+        --Attributes--
+        +state_manager: DocumentStateManager
+        +md_lines: List[MDLine]
+        --Sequential Navigation--
+        +navigate_to_next_line(): Optional[int]
+        +navigate_to_previous_line(): Optional[int]
+        +navigate_to_first_line(): Optional[int]
+        +navigate_to_last_line(): Optional[int]
+        --Title Navigation--
+        +navigate_to_next_title(): Optional[int]
+        +navigate_to_previous_title(): Optional[int]
+        +navigate_to_parent_title(): Optional[int]
+        +navigate_to_first_child_title(): Optional[int]
+        --List Navigation--
+        +navigate_to_next_list_item(): Optional[int]
+        +navigate_to_previous_list_item(): Optional[int]
+        +navigate_to_parent_list_item(): Optional[int]
+        --Find Methods--
+        +find_next_by_type(line_type): Optional[int]
+        +find_previous_by_type(line_type): Optional[int]
+        +find_by_criterion(predicate): List[int]
+        --Private Methods--
+        -_get_active_or_default(): int
+        -_is_title(index): bool
+        -_is_list_item(index): bool
+    }
+
+    class FilterService <<Service>> {
+        ' Servicio de filtrado
+        --Attributes--
+        +state_manager: DocumentStateManager
+        +md_lines: List[MDLine]
+        --Text Filter--
+        +filter_by_text(filter_text, case_sensitive, include_parents): Set[int]
+        --Type Filter--
+        +filter_by_type(line_types): Set[int]
+        --Custom Filter--
+        +filter_by_criterion(predicate): Set[int]
+        --Apply/Clear--
+        +apply_filter(matching_indices, hide_non_matching): int
+        +clear_filter()
+        --Query Methods--
+        +get_visible_count(): int
+        +get_hidden_count(): int
+        +is_filter_active(): bool
+        --Private Methods--
+        -_include_parent_titles(matching_indices): Set[int]
+        -_get_parent_title_indices(index): List[int]
+    }
+}
+
+' ============================================================================
+' CAPA DE MODELO (Data Model)
+' ============================================================================
+package "Modelo de Documento (Model Layer)" LIGHTYELLOW {
+
+    class MDDocument {
+        ' Documento Markdown completo
+        --Attributes--
+        +document: str
+        +path_doc: str
+        +doc_name: str
+        -_md_lines: List[MDLine]
+        --Properties--
+        +md_lines: List[MDLine] {read-only}
+        +can_lines: int {read-only}
+        --Document Methods--
+        +load_doc(path, doc_name): bool
+        +save_doc(): bool
+        +save_as_doc(path, doc_name)
+        --Line Manipulation--
+        +separate_lines(): bool
+        +join_lines(): bool
+        +append_line(md_text_line): MDLine
+        +append_lines(md_text_lines): bool
+        +insert_line(id_line, md_text_line): MDLine
+        +insert_lines(id_line, md_text_lines): bool
+        +remove_line(md_line): bool
+        +remove_lines(md_lines): bool
+        +clear_lines()
+        --Line Movement--
+        +move_line_up(md_line)
+        +move_line_down(md_line)
+        +move_up_lines(ed_line, cant_lines)
+        +move_down_lines(ed_line, cant_lines)
+        +move_line_to(num_line, ed_line)
+        +move_lines_to(num_line, ed_line, cant_lines)
+        --Title Tree--
+        +get_first_title(): MDLine
+        +rebulid_title_tree()
+        +title_level(md_txt): int
+        +find_children_titles(parent_title): List[MDLine]
+        --Markdown Methods--
+        +get_markup_text(extensions): str
+        +update_type_line(md_line)
+        +update_family(mdline)
+    }
+
+    class MDLine {
+        ' Línea de documento Markdown
+        ' (Linked List Node)
+        --Properties--
+        +type: MD_LINE_TYPE
+        +md_text: str
+        +num_line: int
+        --References (Linked List)--
+        +prev_line: MDLine
+        +next_line: MDLine
+        --Translator--
+        +tranlate_markup: TranslateMarkdownToKVMarkup
+        --Methods--
+        +__init__(md_text, prev_line, next_line, type, num_line)
+        --List/Task Navigation--
+        +get_tab_level(): int
+        +get_list_Childs(): List[MDLine]
+        +get_list_parent(): MDLine
+        +get_list_prev(): MDLine
+        +get_list_next(): MDLine
+        --Title Navigation--
+        +get_title_level(): int
+        +get_title_Childs(): List[MDLine]
+        +get_title_first_child(): MDLine
+        +get_title_parent(): MDLine
+        +get_title_prev_same_level(): MDLine
+        +get_title_next_same_level(): MDLine
+        +get_title_prev(): MDLine
+        +get_title_next(): MDLine
+        --Processing--
+        +get_markup_text(extensions): str
+        +update_type(): Optional[MD_LINE_TYPE]
+        --Events--
+        +on_type(instance, new_type)
+        +on_txt_change(instance, value)
+        +on_num_line(instance, value)
+    }
+
+    enum MD_LINE_TYPE {
+        TEXT = 0
+        TITLE = 1
+        HEAD_TITLE = 2
+        UNDERLINE_TITLE = 3
+        SEPARATOR = 4
+        LIST = 5
+        ORDER_LIST = 6
+        TASK = 7
+        TODO = 8
+        TABLE = 9
+        BLOCKQUOTE = 10
+        IMAGEN = 11
+        CODE = 12
+        START_CODE = 13
+        END_CODE = 14
+    }
+}
+
+' ============================================================================
+' CAPA DE UTILIDADES
+' ============================================================================
+package "Utilidades (Utilities)" LIGHTPINK {
+
+    class UndoManager {
+        ' Gestor de Undo/Redo
+        --Methods--
+        +clear_stack()
+        +undo()
+        +redo()
+        +record_action(action)
+    }
+
+    class TranslateMarkdownToKVMarkup {
+        ' Traductor Markdown → Kivy Markup
+        --Methods--
+        +translate(md_text): str
+    }
+}
+
+' ============================================================================
+' RELACIONES
+' ============================================================================
+
+' Vista → Estado
+MDDocumentEditor *-- DocumentStateManager : contiene
+MDDocumentEditor --> LineState : observa cambios
+MDDocumentEditor --> StateChangeEvent : recibe eventos
+MDDocumentEditor o-- SelectableRecycleBoxLayout : layout
+MDDocumentEditor --> MDDocumentLineEditor : crea widgets
+
+' Estado → Eventos
+DocumentStateManager *-- LineState : gestiona estados
+DocumentStateManager ..> StateChangeEvent : emite eventos
+LineState ..> StateChangeEvent : usado en eventos
+
+' Vista → Servicios
+MDDocumentEditor *-- LineService : usa
+MDDocumentEditor *-- SelectionService : usa
+MDDocumentEditor *-- NavigationService : usa
+MDDocumentEditor *-- FilterService : usa
+
+' Servicios → Estado
+LineService --> DocumentStateManager : modifica estado
+SelectionService --> DocumentStateManager : modifica estado
+NavigationService --> DocumentStateManager : consulta estado
+FilterService --> DocumentStateManager : modifica visibilidad
+
+' Servicios → Modelo
+LineService --> MDLine : opera sobre líneas
+SelectionService --> MDLine : selecciona líneas
+NavigationService --> MDLine : navega líneas
+FilterService --> MDLine : filtra líneas
+
+' Vista → Modelo
+MDDocumentEditor --> MDDocument : carga documento
+MDDocumentEditor --> MDLine : obtiene datos
+
+' Modelo → Estructura
+MDDocument *-- MDLine : contiene lista
+MDLine --> MDLine : prev_line/next_line
+MDLine --> MD_LINE_TYPE : tipo de línea
+MDLine *-- TranslateMarkdownToKVMarkup : traductor
+
+' Vista → Utilidades
+MDDocumentEditor *-- UndoManager : gestiona historial
+
+' Widgets
+MDDocumentLineEditor --> LineState : aplica estado
+MDDocumentLineEditor --> MDLine : muestra datos
+
+' ============================================================================
+' NOTAS
+' ============================================================================
+
+note top of DocumentStateManager
+  **SINGLE SOURCE OF TRUTH**
+  - Gestión centralizada de estado
+  - Estados inmutables (LineState)
+  - Patrón Observer para notificaciones
+  - Validación de invariantes
+  - Historial opcional (debug)
+
+  **Elimina:**
+  - Variables fragmentadas
+  - Estado duplicado
+  - Inconsistencias
+end note
+
+note top of LineService
+  **SERVICE LAYER**
+  - Encapsula lógica de negocio
+  - Valida operaciones
+  - Coordina StateManager y MDDocument
+  - Mantiene coherencia de datos
+
+  **Responsabilidades:**
+  - Activar/editar líneas
+  - Insertar/eliminar líneas
+  - Mover líneas
+  - Actualizar referencias
+end note
+
+note bottom of MDDocumentEditor
+  **ARQUITECTURA V2**
+
+  ✅ FASE 1: StateManager integrado
+  ✅ FASE 2: Service Layer completo
+  ✅ FASE 3: FilterService con filter_up
+
+  **Ventajas:**
+  - Código limpio y mantenible
+  - Testeable (servicios aislados)
+  - Extensible (agregar servicios)
+  - Sin deuda técnica
+  - API clara y documentada
+end note
+
+note top of MDLine
+  **LINKED LIST STRUCTURE**
+
+  Estructura doblemente enlazada
+  para navegación eficiente:
+  - prev_line: MDLine anterior
+  - next_line: MDLine siguiente
+
+  Navegación jerárquica:
+  - Títulos: get_title_parent()
+  - Listas: get_list_parent()
+end note
+
+@enduml

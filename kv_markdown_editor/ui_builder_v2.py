@@ -31,7 +31,7 @@ de la interfaz de usuario de la aplicación.
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.splitter import Splitter
 from kivy_mpbe_widgets.theming import Theme
-from kivy_mpbe_widgets.wg_markdown.md_recycleview_document_editor import MDDocumentEditor
+from kivy_mpbe_widgets.wg_markdown2.widgets.md_document_editor import MDDocumentEditor
 from kivy_mpbe_widgets.wg_labels.font_icon_labels import FontIconLabel
 from kivy_mpbe_widgets.wg_buttons.click_buttons import ClickButton, ClickButtonLabel
 from kivy_mpbe_widgets.wg_panels.panels import BoxPanel
@@ -81,12 +81,12 @@ class UIBuilder:
 
     def build_main_layout(self) -> tuple[BoxLayout, dict]:
         """
-        Construye el layout principal de la aplicación.
+        Construye el layout principal de la aplicación V2 con MDDocumentEditorV2.
 
         Returns:
             tuple: (layout_raiz, widgets_dict) donde widgets_dict contiene:
                 - 'splitter': Widget Splitter
-                - 'doc_editor': Editor de documento markdown
+                - 'doc_editor': Editor de documento markdown V2
                 - 'sidebar_layout': Layout de la barra lateral
                 - 'editor_layout': Layout del editor
         """
@@ -107,9 +107,9 @@ class UIBuilder:
         editor_layout = BoxLayout(orientation='vertical')
         layout.add_widget(editor_layout)
 
-        # Editor de documento markdown
+        # Editor de documento markdown V2 con StateManager + Services
         doc_editor = MDDocumentEditor(size_hint=(1, 1))
-        doc_editor.viewclass = 'MDDocumentLineEditor'
+        # MDDocumentEditorV2 ya configura viewclass internamente
         editor_layout.add_widget(doc_editor)
 
         # Layout de barra lateral (panel izquierdo)
@@ -270,9 +270,9 @@ class UIBuilder:
         }
 
     def build_complete_ui(self, active_project: str, md_extensions: str,
-                         include_debug_buttons: bool = True) -> dict:
+                            include_debug_buttons: bool = True) -> dict:
         """
-        Construye la interfaz de usuario completa.
+        Construye la interfaz de usuario completa V2 con MDDocumentEditorV2.
 
         Args:
             active_project: Ruta del proyecto activo
@@ -283,7 +283,7 @@ class UIBuilder:
             dict: Diccionario con todos los widgets creados:
                 - 'root_layout': Layout principal
                 - 'splitter': Splitter
-                - 'doc_editor': Editor de documento
+                - 'doc_editor': Editor de documento V2 (con StateManager + Services)
                 - 'sidebar_layout': Layout barra lateral
                 - 'project_bar_layout': Layout barra proyecto
                 - 'btn_new_prj': Botón nuevo proyecto
@@ -297,7 +297,7 @@ class UIBuilder:
                 - 'btn_mdline': Botón debug (opcional)
                 - 'btn_mdtitle': Botón debug (opcional)
         """
-        # Layout principal
+        # Layout principal con MDDocumentEditorV2
         root_layout, main_widgets = self.build_main_layout()
         sidebar_layout = main_widgets['sidebar_layout']
 

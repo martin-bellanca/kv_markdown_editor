@@ -1,0 +1,179 @@
+================================================================================
+     ARCHIVOS GENERADOS - Diagrama de Clases MDDocumentEditor V2
+================================================================================
+
+✅ ARCHIVOS PRINCIPALES:
+
+1. md_document_editor_v2_class_diagram.puml (17 KB)
+   - Diagrama completo en formato PlantUML
+   - Incluye todas las clases con métodos y atributos
+   - Organizado en 5 capas con código de colores
+   - Relaciones completas (composición, agregación, dependencias)
+   
+2. md_document_editor_v2_class_diagram.md (9.8 KB)
+   - Documentación completa de la arquitectura
+   - Descripción detallada de cada capa
+   - Ejemplos de código y flujos de datos
+   - Guías de testing
+   - Comparación V1 vs V2
+   
+3. ARQUITECTURA_V2.txt (Este archivo - formato ASCII)
+   - Diagrama visual en formato texto
+   - Flujos de datos completos
+   - Métricas del sistema
+   - Referencia rápida
+
+4. README_DIAGRAMA.md (5.3 KB)
+   - Instrucciones para generar el diagrama
+   - Múltiples métodos de visualización
+   - Solución de problemas
+   - Guía de instalación de dependencias
+
+5. generate_diagram.sh (2.2 KB)
+   - Script automatizado de generación
+   - Descarga PlantUML automáticamente
+   - Genera PNG del diagrama
+   - Verificación de dependencias
+
+6. plantuml.jar (21 MB)
+   - Herramienta PlantUML descargada
+   - Lista para usar con Java
+
+================================================================================
+                       CÓMO GENERAR EL DIAGRAMA
+================================================================================
+
+OPCIÓN 1: Instalar Graphviz y generar (RECOMENDADO)
+------------------------------------------------------
+sudo dnf install graphviz
+./generate_diagram.sh
+
+Resultado: md_document_editor_v2_class_diagram.png
+
+
+OPCIÓN 2: VSCode con extensión PlantUML
+-----------------------------------------
+1. Instalar extensión "PlantUML" en VSCode
+2. Abrir md_document_editor_v2_class_diagram.puml
+3. Presionar Alt+D para preview
+4. Click derecho → "Export Current Diagram"
+
+
+OPCIÓN 3: Online (sin instalación)
+------------------------------------
+1. Ir a: https://www.plantuml.com/plantuml/uml/
+2. Copiar contenido de md_document_editor_v2_class_diagram.puml
+3. Pegar en el editor web
+4. Descargar PNG/SVG
+
+================================================================================
+                           ESTRUCTURA DEL PROYECTO
+================================================================================
+
+CAPAS DE LA ARQUITECTURA:
+
+1. 🟠 Vista (UI Layer)
+   - MDDocumentEditor (RecycleView)
+   - SelectableRecycleBoxLayout
+   - MDDocumentLineEditor
+
+2. 🔵 Gestión de Estado (State Layer)
+   - DocumentStateManager (StateManager Pattern)
+   - LineState (Immutable)
+   - StateChangeEvent
+
+3. 🟢 Servicios (Service Layer)
+   - LineService (operaciones de líneas)
+   - SelectionService (selección)
+   - NavigationService (navegación)
+   - FilterService (filtrado con filter_up)
+
+4. 🟡 Modelo de Documento (Model Layer)
+   - MDDocument
+   - MDLine (Linked List)
+   - MD_LINE_TYPE (Enum)
+
+5. 🔴 Utilidades
+   - UndoManager
+   - TranslateMarkdownToKVMarkup
+
+================================================================================
+                         ARCHIVOS DE CÓDIGO FUENTE
+================================================================================
+
+Editor y Vista:
+  kivy_mpe_widgets_prj/kivy_mpbe_widgets/wg_markdown/
+    ├── md_document_editor_v2.py              (Editor principal)
+    └── md_line_editors_v2.py                 (Editores de línea)
+
+Estado:
+  kivy_mpe_widgets_prj/kivy_mpbe_widgets/wg_markdown/
+    └── state_manager.py                      (StateManager)
+
+Servicios:
+  kivy_mpe_widgets_prj/kivy_mpbe_widgets/wg_markdown/services/
+    ├── line_service.py
+    ├── selection_service.py
+    ├── navigation_service.py
+    └── filter_service.py
+
+Modelo:
+  helpers_mpbe_prj/helpers_mpbe/markdown_document/
+    └── md_document.py                        (MDDocument, MDLine)
+
+Tests:
+  kivy_mpe_widgets_prj/kivy_mpbe_widgets/wg_markdown/
+    ├── test_state_manager.py
+    ├── test_line_service.py
+    ├── test_selection_service.py
+    ├── test_navigation_service.py
+    ├── test_filter_service.py
+    └── test_md_editor_v2.py
+
+================================================================================
+                      CARACTERÍSTICAS PRINCIPALES
+================================================================================
+
+✅ Estado Centralizado (FASE 1)
+   - Single Source of Truth
+   - Estados inmutables
+   - Observer Pattern
+   - Validación automática de invariantes
+
+✅ Service Layer (FASE 2)
+   - Lógica de negocio encapsulada
+   - Servicios especializados
+   - Fácil de testear
+   - Código limpio
+
+✅ FilterService Completo (FASE 3)
+   - Filtrado por texto
+   - Inclusión de títulos padre (filter_up)
+   - Filtros personalizados
+   - Gestión de visibilidad
+
+================================================================================
+                            PRÓXIMOS PASOS
+================================================================================
+
+1. ✅ Generar diagrama PNG con ./generate_diagram.sh
+2. ✅ Revisar documentación en md_document_editor_v2_class_diagram.md
+3. ✅ Leer arquitectura en ARQUITECTURA_V2.txt
+4. ✅ Explorar código fuente usando el diagrama como guía
+5. ✅ Ejecutar tests para validar funcionamiento
+
+================================================================================
+                            INFORMACIÓN ADICIONAL
+================================================================================
+
+Versión:    alfa_0.0.1-2024-12-25
+Autor:      Martin Pablo Bellanca
+Licencia:   GPL3
+Proyecto:   KV Markdown Editor
+
+Para más información, consultar:
+  - CLAUDE.md (documentación del proyecto completo)
+  - README_DIAGRAMA.md (instrucciones detalladas)
+  - md_document_editor_v2_class_diagram.md (documentación arquitectura)
+
+================================================================================
