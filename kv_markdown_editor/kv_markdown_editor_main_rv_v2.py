@@ -350,13 +350,17 @@ class KVMarkdownEditorApp(App):
             Logger.error(f"KVMarkdownEditorApp: Error al abrir proyecto: {e}")
             raise
 
-    def open_file(self, file_path: str, file_name: str) -> bool:
+    def open_file(self, file_path: str, file_name: str, refresh_list: bool = True) -> bool:
         """
         Abre un archivo markdown.
 
         Args:
             file_path: Directorio del archivo
             file_name: Nombre del archivo
+            refresh_list: Si True, repuebla la lista de archivos marcando el archivo
+                abierto. Debe ser False cuando la apertura proviene de un click en la
+                propia lista, ya que el widget ya seleccionó el item y repoblar
+                reconstruiría el RecycleView en pleno click, rompiendo las animaciones.
 
         Returns:
             bool: True si el archivo se abrió exitosamente
@@ -372,11 +376,14 @@ class KVMarkdownEditorApp(App):
 
             # Actualizar editor
             self.populate_doc_editor()
-            # Actualizar vista de archivos. TODO: Hace falta? Verificar.
-            self.widgets['file_list_view'].populate(
-                folder=file_path,
-                select_file=file_name
-            )
+            # Actualizar vista de archivos sólo en aperturas programáticas (no por click).
+            # Repoblar en un click reconstruye el RecycleView y arrastra las animaciones
+            # de selección a la fila equivocada.
+            if refresh_list:
+                self.widgets['file_list_view'].populate(
+                    folder=file_path,
+                    select_file=file_name
+                )
 
             Logger.info(f"KVMarkdownEditorApp: Archivo abierto: {file_name}")
             return True
@@ -553,7 +560,9 @@ class KVMarkdownEditorApp(App):
         Logger.debug(f"KVMarkdownEditorApp: Archivo seleccionado: {file_name}")
 
         try:
-            self.open_file(folder_path, file_name)
+            # refresh_list=False: el item ya fue seleccionado por el click en la lista;
+            # repoblar reconstruiría el RecycleView y rompería las animaciones.
+            self.open_file(folder_path, file_name, refresh_list=False)
         except Exception as e:
             Logger.error(f"KVMarkdownEditorApp: Error al seleccionar archivo: {e}")
 
