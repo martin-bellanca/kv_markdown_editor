@@ -448,7 +448,7 @@ class KVMarkdownEditorApp(App):
 
         try:
             self._load_session()
-        except FileNotFoundError:  # Es normal en primera ejecución
+        except FileNotFoundError as e:  # Es normal en primera ejecución
             Logger.warning(
                 f"KVMarkdownEditorApp: No se encontró archivo de inicializacion de la sesión: {e}"
             )

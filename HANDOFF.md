@@ -111,7 +111,7 @@ Render del documento + scroll (labels de solo lectura).
 |---|---|---|
 | 0 | Render de líneas *bound* a `LineState` (sin duplicar) | ✅ |
 | 1 | Hover (líneas azules) + selección verde animada por click | ✅ |
-| 2 | Edición: doble-click, `MDLineTextInput` overlay/below (config `editor_placement`), render en vivo, Enter/Escape | ✅ |
+| 2 | Edición: click en línea ya seleccionada (reemplazó al doble-click, 2026-07-03), `MDLineTextInput` overlay/below (config `editor_placement`), render en vivo, Enter/Escape | ✅ |
 | **3a** | Teclado: **↑/↓, PageUp/Down, Ctrl+Home/End** (a nivel Window, con slide) | ✅ |
 | 3b | F2/Enter→editar, ↑↓ en edición (mantener columna), ←→ entre líneas | ⬜ próximo |
 | 3c | Enter parte la línea en el cursor, Backspace/Delete (unir/borrar), Alt+↑↓ (mover) | ⬜ |
@@ -189,6 +189,12 @@ múltiple), 4 (foco de la app), 5 (reciclado propio).
 
 ## 7. Bugs resueltos y pendientes
 
+> 📋 **Seguimiento detallado en `wg_markdown2/docs/hallazgos_pendientes.md`**:
+> resultado del chequeo completo pre-Inc 3b (2026-07-03), con 6 bugs corregidos
+> (binds no-op del StateManager, `widget_type` sin inicializar, fuga de
+> `Window.mouse_pos`, etc.) y los pendientes asignados a su incremento
+> (geometría→Inc 5, `move_line`/eventos estructurales→Inc 3c, etc.).
+
 **Resueltos (ver git log del repo de widgets):**
 - Fuente `RobotoMono` no registrada → crash al renderizar código inline. (commit `243538e`)
 - Animación de selección de archivo caía en la fila equivocada (app: `open_file`
@@ -212,6 +218,8 @@ múltiple), 4 (foco de la app), 5 (reciclado propio).
   secuencia de edición, roadmap. Mantener al día en cada incremento.
 - **`tabla_eventos.md`** — todas las combinaciones de teclado/mouse con sub-tarea y
   estado (la **spec** del comportamiento tipo editor de texto).
+- **`hallazgos_pendientes.md`** — bugs, hallazgos y deuda técnica con estado
+  (chequeo completo 2026-07-03). Actualizar al corregir o descubrir nuevos.
 - **`ref_MDDocumentLineEditor.md`** — diagrama de clases del stack de edición viejo
   (referencia para reusar piezas).
 - **`MDDocumentEditor_V2_Arquitectura.md`** — diseño original (parcialmente
