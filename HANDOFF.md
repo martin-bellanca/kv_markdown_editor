@@ -76,10 +76,28 @@ Patrón: **estado centralizado + widgets que observan su estado**.
 **Modelo de datos** (en `helpers_mpbe`): `MDDocument` contiene `MDLine[]`. `LineState`
 referencia su `MDLine` (compartido → editar persiste directo en el documento).
 
-**Stack de edición viejo (referencia):** `widgets/md_line_editor.py`
-(`MDDocumentLineEditor`) + `widgets/md_line_widgets.py` (`MDLineEditor` + sub-widgets
-`MDDLDrag/NumberLine/Tree/InfoBar/Space`). No lo usa el coordinador V2, pero tiene
-piezas reusables (ver `docs/ref_MDDocumentLineEditor.md`).
+**Stack de edición portado (en `wg_markdown2`, referencia de piezas):**
+`widgets/md_line_editor.py` (`MDDocumentLineEditor`) + `widgets/md_line_widgets.py`
+(`MDLineEditor` + sub-widgets `MDDLDrag/NumberLine/Tree/InfoBar/Space`). No lo usa
+el coordinador V2, pero tiene piezas reusables (ver `docs/ref_MDDocumentLineEditor.md`).
+
+### ⭐ Versión anterior (V1) — GUÍA PRINCIPAL de referencia
+
+La V1 completa y **funcional** vive en `kivy_mpbe_widgets/wg_markdown/` (el módulo
+**sin** el "2"). Es la referencia principal para **cómo se comportaba/resolvía**
+cada cosa. Ya se mina de ahí (p. ej. el teclado a nivel Window salió de ahí).
+**Consultarla antes de codificar** cada incremento, y reusar con cuidado (sin
+arrastrar sus problemas, mayormente visuales).
+
+| Archivo V1 (`wg_markdown/`) | Qué mirar / reusar |
+|---|---|
+| `md_recycleview_document_editor.py` (~2400 líneas) | El editor viejo completo: **manejo de teclado a nivel Window** (`_on_keyboard_down`, gateado por `instance_focus` y `level_render`), activación, scroll, insertar/borrar/mover líneas, selección múltiple, undo/redo, copiar/pegar. **Guía directa para Inc 3b-3e**. |
+| `md_line_editors_v2.py` (~600 líneas) | Editor de línea viejo: `select(value, anim, anim_type)` con `'fade'/'up'/'down'`, manejo del cursor, edición inline. |
+| `state_manager.py` (~900 líneas) | StateManager viejo: `activate_line(..., anim_type)`, `anim_type` en el estado, navegación por títulos, selección. |
+| `graphics/markdown_graphics.py` | `GSelectItem` con `animate_fade/up/down` (**ya en uso** en V2 para las animaciones de selección). |
+
+> Nota: los nombres de método `_handle_*` / `_on_navigation` de `docs/tabla_eventos.md`
+> reflejan el diseño de esta V1; usarla como plantilla de comportamiento.
 
 ---
 
@@ -127,9 +145,10 @@ Render del documento + scroll (labels de solo lectura).
 2. **Explicar antes de editar**: describir bug/diagnóstico y solución propuesta y
    **esperar aprobación del usuario** antes de tocar código (aplica también a
    instrumentación/debug temporal). El usuario quiere entender cada cambio.
-3. **Reusar el `wg_markdown` viejo con cuidado**: tiene mucho útil (sobre todo
-   animaciones y mecánicas), pero tenía problemas (mayormente visuales) que la V2
-   busca no arrastrar.
+3. **Consultar la V1 (`wg_markdown/`) como guía antes de cada incremento** y
+   reusar con cuidado: tiene mucho útil (animaciones, mecánicas, teclado), pero
+   tenía problemas (mayormente visuales) que la V2 busca no arrastrar. Ver la
+   sección "Versión anterior (V1)" arriba.
 4. **Verificación**: la hace el usuario en la GUI (headless no sirve). Está OK
    dejar logs `SELDBG`-style temporales para diagnosticar y quitarlos después.
 5. **Commits**: mensajes en español, descriptivos, con `Co-Authored-By`. Commitear
@@ -149,6 +168,8 @@ Render del documento + scroll (labels de solo lectura).
   edición a la línea anterior/siguiente (cursor al final/inicio respectivamente).
 
 **Notas de implementación:**
+- **Guía**: mirar cómo lo resolvía la V1 en `wg_markdown/md_recycleview_document_editor.py`
+  (`_on_keyboard_down` y el manejo del cursor/edición) antes de codificar.
 - La navegación en edición requiere leer/fijar el cursor del `MDLineTextInput` y,
   al cambiar de línea, entrar en edición de la nueva con el cursor en la columna/pos
   correspondiente. Reusar `edit_line(index)` + posicionar cursor.
