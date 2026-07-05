@@ -259,15 +259,15 @@ class ProjectManager:
         if not self.md_document.doc_name:
             raise ValueError("No hay documento activo para guardar")
 
-        file_path = Path(self.md_document.path_doc) / self.md_document.doc_name
+        file_path = Path(self.md_document.doc_path) / self.md_document.doc_name
 
         # Verificar permisos de escritura
         if file_path.exists() and not os.access(file_path, os.W_OK):
             raise PermissionError(f"Sin permisos de escritura en: {file_path}")
 
-        if not os.access(self.md_document.path_doc, os.W_OK):
+        if not os.access(self.md_document.doc_path, os.W_OK):
             raise PermissionError(
-                f"Sin permisos de escritura en directorio: {self.md_document.path_doc}"
+                f"Sin permisos de escritura en directorio: {self.md_document.doc_path}"
             )
 
         try:
