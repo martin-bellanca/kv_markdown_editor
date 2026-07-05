@@ -106,21 +106,32 @@ arrastrar sus problemas, mayormente visuales).
 ### Etapa I — COMPLETA
 Render del documento + scroll (labels de solo lectura).
 
-### Etapa II (edición) — EN PROGRESO
+### Etapa II (edición) — COMPLETA ✅
 | Inc | Qué | Estado |
 |---|---|---|
 | 0 | Render de líneas *bound* a `LineState` (sin duplicar) | ✅ |
 | 1 | Hover (líneas azules) + selección verde animada por click | ✅ |
-| 2 | Edición: click en línea ya seleccionada (reemplazó al doble-click, 2026-07-03), `MDLineTextInput` overlay/below (config `editor_placement`), render en vivo, Enter/Escape | ✅ |
-| **3a** | Teclado: **↑/↓, PageUp/Down, Ctrl+Home/End** (a nivel Window, con slide) | ✅ |
-| 3b | F2/Enter→editar, ↑↓ en edición (mantener columna), ←→ entre líneas | ⬜ próximo |
-| 3c | Enter parte la línea en el cursor, Backspace/Delete (unir/borrar), Alt+↑↓ (mover) | ⬜ |
-| 3d | Navegación por títulos (Ctrl+↑↓, Ctrl+Shift+↑↓, Alt+Shift+↑↓) | ⬜ |
-| 3e | Selección múltiple (Ctrl+A, Shift+↑↓, Shift/Ctrl+Click, Escape) | ⬜ |
-| 4 | **Control del foco de la App** (coordinar foco entre árbol/archivos/editor) | ⬜ |
-| 5 | **Sistema de reciclado propio** (solo realiza líneas visibles) | ⬜ |
+| 2 | Edición: click en línea ya seleccionada, `MDLineTextInput` overlay/below (config `editor_placement`), render en vivo, Enter/Escape | ✅ |
+| 3a | Teclado: ↑/↓, PageUp/Down, Ctrl+Home/End (a nivel Window, con slide) | ✅ |
+| 3b | F2/Enter→editar, ↑↓ en edición (columna objetivo), ←→ entre líneas, F2 salir | ✅ |
+| 3c | Enter parte / Shift+Enter arriba, Backspace/Delete unir, Alt+↑↓ mover | ✅ |
+| 3d | Navegación por títulos (Ctrl+↑↓, Ctrl+Shift+↑↓ nivel, Alt+Shift+↑↓ padre) | ✅ |
+| 3e | Selección múltiple contigua (Shift+↑↓, Shift+Click) + acciones de bloque: Delete, Alt+↑↓ mover, Ctrl+C/X/V, Ctrl+D, Tab/Shift+Tab, Ctrl+Espacio/Ctrl+Click (tarea), Ctrl+T/Ctrl+L (tarea/lista) | ✅ |
 
 > Detalle exhaustivo de teclas con estado en **`wg_markdown2/docs/tabla_eventos.md`**.
+> Manual de usuario (atajos) en **`wg_markdown2/user_manual/teclas_rapidas.md`**.
+
+### Etapa III (roadmap) — reordenado 2026-07-05
+| Inc | Qué | Estado |
+|---|---|---|
+| 4 | **Undo/Redo** (Ctrl+Z/Y, hay `UndoManager` en kivy_mpbe_widgets) + **Filtros** (atar `FilterService` al StateManager V2) | ⬜ próximo |
+| 5 | **Control del foco de la App** (coordinar foco entre árbol/archivos/editor) | ⬜ |
+| 6 | **Sistema de reciclado propio** (solo realiza líneas visibles; arrastra #7 geometría) | ⬜ |
+| 7 | **Resolución de deuda técnica** (`docs/hallazgos_pendientes.md`: #11b, #12, #13) | ⬜ |
+| 8 | **Componentes especiales** (tablas / mermaid / bloques de código — `MDLine` multilínea) | ⬜ |
+
+> Nota: las referencias viejas a "Inc 4 = foco" e "Inc 5 = reciclado" en secciones
+> más abajo y en `hallazgos_pendientes.md` corresponden ahora a **Inc 5** e **Inc 6**.
 
 ### Decisiones de diseño clave (ya tomadas)
 - **Teclado a nivel `Window`** (`MDDocumentEditor._on_window_key_down`), gateado por
@@ -158,32 +169,26 @@ Render del documento + scroll (labels de solo lectura).
 
 ---
 
-## 6. Plan de acción — próximo: Inc 3b
+## 6. Plan de acción — próximo: Inc 4 (Undo/Redo + Filtros)
 
-**Objetivo Inc 3b** (todo cuando una línea está activa):
-- **F2** y **Enter (en selección)** → entrar en modo edición de la línea activa.
-- **↑ / ↓ en edición** → mover la edición a la línea de arriba/abajo manteniendo la
-  **columna** del cursor.
-- **← / →** en edición → si el cursor está al inicio/fin de la línea, pasar la
-  edición a la línea anterior/siguiente (cursor al final/inicio respectivamente).
+**Etapa II (edición) COMPLETA** (Inc 0–3e). Sigue la **Etapa III** con el roadmap
+reordenado (ver tabla en §4):
 
-**Notas de implementación:**
-- **Guía**: mirar cómo lo resolvía la V1 en `wg_markdown/md_recycleview_document_editor.py`
-  (`_on_keyboard_down` y el manejo del cursor/edición) antes de codificar.
-- La navegación en edición requiere leer/fijar el cursor del `MDLineTextInput` y,
-  al cambiar de línea, entrar en edición de la nueva con el cursor en la columna/pos
-  correspondiente. Reusar `edit_line(index)` + posicionar cursor.
-- Recordar el gate: el handler de teclado del documento (`_on_window_key_down`)
-  hoy **no** actúa en edición (`_is_editing()` True). Las teclas de edición
-  (↑↓←→ en edición) hay que manejarlas donde el `MDLineTextInput` tiene el foco
-  (en `MDDocumentLine`, interceptando el teclado del input), no en el handler
-  Window del documento. Definir bien esta división al planificar 3b.
-- Enter tiene comportamiento definido para 3c: en edición **parte la línea en el
-  cursor** (el texto posterior baja a una línea nueva; la actual conserva el
-  anterior). En 3b, Enter en **selección** entra a editar.
+**Inc 4 — Undo/Redo + Filtros** (los 2 agregados del Inc 3 sin resolver):
+- **Undo/Redo** (Ctrl+Z / Ctrl+Y): hay un `UndoManager` en `kivy_mpbe_widgets`.
+  Envolver las operaciones del StateManager (update_line_text, insert/remove/move,
+  y las acciones de bloque de 3e) en comandos deshacer/rehacer. La V1
+  (`md_recycleview_document_editor.py`) tiene `_MoveLinesCommand`, `_InsertLinesCommand`,
+  `_RemoveLinesCommand`, etc. como guía.
+- **Filtros**: atar el `FilterService` (ya integrado a nivel app) al StateManager V2
+  (usar `set_visibility`/`get_visible_indices`; el groundwork de `visible`/grupos ya existe).
 
-**Después:** 3c (estructural: insertar/borrar/mover), 3d (títulos), 3e (selección
-múltiple), 4 (foco de la app), 5 (reciclado propio).
+**Después:**
+- **Inc 5** — Foco de la App (coordinar foco entre árbol/archivos/editor).
+- **Inc 6** — Reciclado propio (arrastra #7: cablear geometría real al StateManager).
+- **Inc 7** — Deuda técnica (`docs/hallazgos_pendientes.md`: #11b, #12 tablas, #13).
+- **Inc 8** — Componentes especiales (tablas / mermaid / bloques de código; `MDLine`
+  multilínea — el clipboard de 3e.4 ya quedó preparado para preservar la estructura).
 
 ---
 
